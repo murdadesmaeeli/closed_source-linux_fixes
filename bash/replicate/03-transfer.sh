@@ -50,6 +50,44 @@ fi
 echo "   [OK] Source is reachable"
 echo ""
 
+# ─── SSH connectivity check ─────────────────────────────────
+
+echo "=== Checking SSH on source ==="
+MAX_SSH_RETRIES=5
+SSH_OK=false
+for attempt in $(seq 1 $MAX_SSH_RETRIES); do
+    if ssh -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=accept-new \
+         "${SOURCE_USER}@${SOURCE_IP}" true 2>/dev/null; then
+        SSH_OK=true
+        break
+    fi
+    # Distinguish "connection refused" from "auth required"
+    ssh_err=$(ssh -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=accept-new \
+        "${SOURCE_USER}@${SOURCE_IP}" true 2>&1 || true)
+    if echo "$ssh_err" | grep -qi "permission denied"; then
+        SSH_OK=true   # server is up, just needs auth — that's fine
+        break
+    fi
+    if [ "$attempt" -lt "$MAX_SSH_RETRIES" ]; then
+        echo "   [..] SSH not ready (attempt ${attempt}/${MAX_SSH_RETRIES}), retrying in 3s..."
+        sleep 3
+    fi
+done
+
+if [ "$SSH_OK" = false ]; then
+    echo "   [!!] SSH server on ${SOURCE_IP} is not accepting connections."
+    echo ""
+    echo "   On the SOURCE machine, run:"
+    echo "     sudo apt install -y openssh-server"
+    echo "     sudo systemctl enable --now ssh"
+    echo ""
+    echo "   Or re-run:  sudo ./02-setup-network.sh source"
+    echo "   (it installs and starts SSH automatically)"
+    exit 1
+fi
+echo "   [OK] SSH is reachable on ${SOURCE_IP}"
+echo ""
+
 # ─── SSH key setup hint ─────────────────────────────────────
 
 echo "=== SSH setup ==="

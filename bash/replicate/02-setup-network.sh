@@ -179,6 +179,7 @@ elif [ "$ROLE" = "target" ]; then
     echo ""
 
     # Test connectivity to source
+    SSH_READY=false
     if [ -n "$GATEWAY" ]; then
         echo "=== Testing connectivity ==="
         if ping -c 2 -W 2 "$GATEWAY" &>/dev/null; then
@@ -193,6 +194,24 @@ elif [ "$ROLE" = "target" ]; then
         else
             echo "   [!!] No internet — source may not be sharing WiFi"
         fi
+
+        # Test SSH on source
+        echo ""
+        echo "=== Testing SSH on source ==="
+        ssh_err=$(ssh -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=accept-new \
+            "oneking@${GATEWAY}" true 2>&1 || true)
+        if echo "$ssh_err" | grep -qi "connection refused\|no route\|network is unreachable"; then
+            echo "   [!!] SSH server on ${GATEWAY} is NOT running"
+            echo ""
+            echo "   On the SOURCE machine, run:"
+            echo "     sudo apt install -y openssh-server"
+            echo "     sudo systemctl enable --now ssh"
+            echo ""
+            echo "   Or re-run:  sudo ./02-setup-network.sh source"
+        else
+            echo "   [OK] SSH is reachable on ${GATEWAY}"
+            SSH_READY=true
+        fi
     fi
 
     echo ""
@@ -203,8 +222,15 @@ elif [ "$ROLE" = "target" ]; then
     echo "  This machine: ${TARGET_IP} (${ETH_IFACE})"
     echo "  Source:        ${GATEWAY} (gateway)"
     echo ""
-    echo "  Test SSH:  ssh oneking@${GATEWAY}"
-    echo ""
-    echo "  Next step: run 03-transfer.sh on this machine"
+    if [ "$SSH_READY" = true ]; then
+        echo "  SSH:     OK"
+        echo ""
+        echo "  Next step: run 03-transfer.sh on this machine"
+    else
+        echo "  SSH:     NOT READY — fix on source first (see above)"
+        echo ""
+        echo "  After starting SSH on source, re-run this script or test with:"
+        echo "    ssh oneking@${GATEWAY}"
+    fi
     echo ""
 fi
