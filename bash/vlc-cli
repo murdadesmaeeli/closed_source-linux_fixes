@@ -1,0 +1,20 @@
+#!/bin/bash
+# VLC launcher that always works
+# Uses cvlc (command-line interface) which doesn't have Qt issues
+
+# If started without files, show help
+if [ $# -eq 0 ]; then
+    echo "VLC Command-Line Launcher (cvlc)"
+    echo "Usage: vlc-cli <file or URL>"
+    echo ""
+    echo "This uses cvlc which works reliably on Wayland/Debian"
+    echo ""
+    read -p "Enter video file path or URL (or press Enter to exit): " VIDEO_FILE
+    if [ -z "$VIDEO_FILE" ]; then
+        exit 0
+    fi
+    exec cvlc "$VIDEO_FILE"
+else
+    exec cvlc "$@"
+fi
+
